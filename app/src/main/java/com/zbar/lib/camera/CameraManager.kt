@@ -31,7 +31,7 @@ class CameraManager private constructor(context: Context) {
 
     init {
         this.configManager = CameraConfigurationManager(context)
-
+        FlashlightManager.Companion.init();
         useOneShotPreviewCallback = SDK_INT > 3
         previewCallback = PreviewCallback(configManager, useOneShotPreviewCallback)
         autoFocusCallback = AutoFocusCallback()
@@ -51,7 +51,7 @@ class CameraManager private constructor(context: Context) {
                 configManager.initFromCameraParameters(camera!!)
             }
             configManager.setDesiredCameraParameters(camera!!)
-            FlashlightManager.enableFlashlight()
+            FlashlightManager.Companion.get().enableFlashlight()
         }
     }
 
@@ -60,7 +60,7 @@ class CameraManager private constructor(context: Context) {
 
     fun closeDriver() {
         if (camera != null) {
-            FlashlightManager.disableFlashlight()
+            FlashlightManager.Companion.get().disableFlashlight()
             camera!!.release()
             camera = null
         }
@@ -141,8 +141,8 @@ class CameraManager private constructor(context: Context) {
             }
         }
 
-        fun get(): CameraManager {
-            return cameraManager!!
+        fun get(): CameraManager? {
+            return cameraManager
         }
     }
 }

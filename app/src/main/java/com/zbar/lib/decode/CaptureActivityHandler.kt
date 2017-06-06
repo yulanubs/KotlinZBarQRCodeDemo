@@ -30,7 +30,7 @@ class CaptureActivityHandler(activity: CaptureActivity) : Handler() {
         decodeThread = DecodeThread(activity)
         decodeThread!!.start()
         state = State.SUCCESS
-        CameraManager.get().startPreview()
+        CameraManager.get()!!.startPreview()
         restartPreviewAndDecode()
     }
 
@@ -38,7 +38,7 @@ class CaptureActivityHandler(activity: CaptureActivity) : Handler() {
 
         when (message.what) {
             R.id.auto_focus -> if (state == State.PREVIEW) {
-                CameraManager.get().requestAutoFocus(this, R.id.auto_focus)
+                CameraManager.get()!!.requestAutoFocus(this, R.id.auto_focus)
             }
             R.id.restart_preview -> restartPreviewAndDecode()
             R.id.decode_succeeded -> {
@@ -48,7 +48,7 @@ class CaptureActivityHandler(activity: CaptureActivity) : Handler() {
 
             R.id.decode_failed -> {
                 state = State.PREVIEW
-                CameraManager.get().requestPreviewFrame(decodeThread!!.getHandler(),
+                CameraManager.get()!!.requestPreviewFrame(decodeThread!!.getHandler(),
                         R.id.decode)
             }
         }
@@ -57,7 +57,7 @@ class CaptureActivityHandler(activity: CaptureActivity) : Handler() {
 
     fun quitSynchronously() {
         state = State.DONE
-        CameraManager.get().stopPreview()
+        CameraManager.get()!!.stopPreview()
         removeMessages(R.id.decode_succeeded)
         removeMessages(R.id.decode_failed)
         removeMessages(R.id.decode)
@@ -67,9 +67,9 @@ class CaptureActivityHandler(activity: CaptureActivity) : Handler() {
     private fun restartPreviewAndDecode() {
         if (state == State.SUCCESS) {
             state = State.PREVIEW
-            CameraManager.get().requestPreviewFrame(decodeThread!!.getHandler(),
+            CameraManager.get()!!.requestPreviewFrame(decodeThread!!.getHandler(),
                     R.id.decode)
-            CameraManager.get().requestAutoFocus(this, R.id.auto_focus)
+            CameraManager.get()!!.requestAutoFocus(this, R.id.auto_focus)
         }
     }
 

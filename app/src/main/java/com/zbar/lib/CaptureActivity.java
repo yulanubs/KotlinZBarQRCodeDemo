@@ -1,7 +1,9 @@
 package com.zbar.lib;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Point;
 import android.media.AudioManager;
@@ -10,6 +12,9 @@ import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
+import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
@@ -40,6 +45,7 @@ public class CaptureActivity extends Activity implements Callback {
 	public static final int REQUEST_CODE_SCAN = 0x0000;
 	public static final String DECODED_CONTENT_KEY = "codedContent";
 	public static final String DECODED_BITMAP_KEY = "codedBitmap";
+	private static final int TAKE_PHOTO_REQUEST_CODE =0x2213 ;
 	private CaptureActivityHandler handler;
 	private boolean hasSurface;
 	private InactivityTimer inactivityTimer;
@@ -101,21 +107,25 @@ public class CaptureActivity extends Activity implements Callback {
 		super.onCreate(savedInstanceState);
 
 		setContentView(R.layout.qr_code_activity_qr_scan);
-		CameraManager.Companion.init(getApplication());
-		hasSurface = false;
-		inactivityTimer = new InactivityTimer(this);
 
-		mContainer = (RelativeLayout) findViewById(R.id.capture_containter);
-		mCropLayout = (RelativeLayout) findViewById(R.id.capture_crop_layout);
 
-		ImageView mQrLineView = (ImageView) findViewById(R.id.capture_scan_line);
-		TranslateAnimation mAnimation = new TranslateAnimation(TranslateAnimation.ABSOLUTE, 0f, TranslateAnimation.ABSOLUTE, 0f,
-				TranslateAnimation.RELATIVE_TO_PARENT, 0f, TranslateAnimation.RELATIVE_TO_PARENT, 0.9f);
-		mAnimation.setDuration(1500);
-		mAnimation.setRepeatCount(-1);
-		mAnimation.setRepeatMode(Animation.REVERSE);
-		mAnimation.setInterpolator(new LinearInterpolator());
-		mQrLineView.setAnimation(mAnimation);
+			CameraManager.Companion.init(getApplication());
+			hasSurface = false;
+			inactivityTimer = new InactivityTimer(this);
+
+			mContainer = (RelativeLayout) findViewById(R.id.capture_containter);
+			mCropLayout = (RelativeLayout) findViewById(R.id.capture_crop_layout);
+
+			ImageView mQrLineView = (ImageView) findViewById(R.id.capture_scan_line);
+			TranslateAnimation mAnimation = new TranslateAnimation(TranslateAnimation.ABSOLUTE, 0f, TranslateAnimation.ABSOLUTE, 0f,
+					TranslateAnimation.RELATIVE_TO_PARENT, 0f, TranslateAnimation.RELATIVE_TO_PARENT, 0.9f);
+			mAnimation.setDuration(1500);
+			mAnimation.setRepeatCount(-1);
+			mAnimation.setRepeatMode(Animation.REVERSE);
+			mAnimation.setInterpolator(new LinearInterpolator());
+			mQrLineView.setAnimation(mAnimation);
+
+
 	}
 
 	boolean flag = true;
@@ -132,26 +142,66 @@ public class CaptureActivity extends Activity implements Callback {
 		}
 
 	}
-
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		doNext(requestCode, grantResults);
+	}
+	private void doNext(int requestCode, int[] grantResults) {
+		if (requestCode == 1) {
+			if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				// Permission Granted
+				hasSurface = true;
+				SurfaceView surfaceView = (SurfaceView) findViewById(R.id.capture_preview);
+				SurfaceHolder surfaceHolder = surfaceView.getHolder();
+				if (hasSurface) {
+					initCamera(surfaceHolder);
+				} else {
+					surfaceHolder.addCallback(this);
+					surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+				}
+			} else {
+				CameraManager.Companion.get().closeDriver();
+				// Permission Denied
+				//  displayFrameworkBugMessageAndExit();
+				Toast.makeText(this, "请在应用管理中打开“相机”访问权限！", Toast.LENGTH_LONG).show();
+				finish();
+			}
+		}
+	}
 	@SuppressWarnings("deprecation")
 	@Override
 	protected void onResume() {
 		super.onResume();
-		SurfaceView surfaceView = (SurfaceView) findViewById(R.id.capture_preview);
-		SurfaceHolder surfaceHolder = surfaceView.getHolder();
-		if (hasSurface) {
-			initCamera(surfaceHolder);
+		if (ContextCompat.checkSelfPermission(this,
+				Manifest.permission.CAMERA)
+				!= PackageManager.PERMISSION_GRANTED) {
+			ActivityCompat.requestPermissions( this,
+					new String[]{Manifest.permission.CAMERA},
+					TAKE_PHOTO_REQUEST_CODE);
+			hasSurface=true;
 		} else {
-			surfaceHolder.addCallback(this);
-			surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+			SurfaceView surfaceView = (SurfaceView) findViewById(R.id.capture_preview);
+			SurfaceHolder surfaceHolder = surfaceView.getHolder();
+			if (hasSurface) {
+				initCamera(surfaceHolder);
+
+
+
+			} else {
+				surfaceHolder.addCallback(this);
+				surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+			}
+			playBeep = true;
+			AudioManager audioService = (AudioManager) getSystemService(AUDIO_SERVICE);
+			if (audioService.getRingerMode() != AudioManager.RINGER_MODE_NORMAL) {
+				playBeep = false;
+			}
+			initBeepSound();
+			vibrate = true;
 		}
-		playBeep = true;
-		AudioManager audioService = (AudioManager) getSystemService(AUDIO_SERVICE);
-		if (audioService.getRingerMode() != AudioManager.RINGER_MODE_NORMAL) {
-			playBeep = false;
-		}
-		initBeepSound();
-		vibrate = true;
+
+
 	}
 
 	@Override
@@ -162,6 +212,9 @@ public class CaptureActivity extends Activity implements Callback {
 			handler = null;
 		}
 		CameraManager.Companion.get().closeDriver();
+
+
+
 	}
 
 	@Override
@@ -223,8 +276,20 @@ public class CaptureActivity extends Activity implements Callback {
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
 		if (!hasSurface) {
-			hasSurface = true;
-			initCamera(holder);
+
+			if (ContextCompat.checkSelfPermission(this,
+					Manifest.permission.CAMERA)
+					!= PackageManager.PERMISSION_GRANTED) {
+//				hasSurface=false;
+				ActivityCompat.requestPermissions((Activity) this,
+						new String[]{Manifest.permission.CAMERA},
+						TAKE_PHOTO_REQUEST_CODE);
+
+			} else {
+				hasSurface = true;
+				initCamera(holder);
+			}
+
 		}
 	}
 

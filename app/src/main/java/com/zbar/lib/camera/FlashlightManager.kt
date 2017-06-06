@@ -15,22 +15,13 @@ import java.lang.reflect.Method
 
  * 描述: 闪光灯管理
  */
-internal object FlashlightManager {
+internal class FlashlightManager {
 
-    private val TAG = FlashlightManager::class.java.simpleName
 
-    private val iHardwareService: Any?
-    private val setFlashEnabledMethod: Method
+//    private val iHardwareService: Any?
+//    private val setFlashEnabledMethod: Method
 
-    init {
-        iHardwareService = hardwareService
-        setFlashEnabledMethod = getSetFlashEnabledMethod(iHardwareService)!!
-        if (iHardwareService == null) {
-            Log.v(TAG, "This device does supports control of a flashlight")
-        } else {
-            Log.v(TAG, "This device does not support control of a flashlight")
-        }
-    }
+
 
     private val hardwareService: Any?
         get() {
@@ -107,8 +98,28 @@ internal object FlashlightManager {
 
     private fun setFlashlight(active: Boolean) {
         if (iHardwareService != null) {
-            invoke(setFlashEnabledMethod, iHardwareService, active)
+            invoke(setFlashEnabledMethod!!, iHardwareService, active)
         }
     }
-
+    companion object {
+        private val TAG = FlashlightManager::class.java.simpleName
+        private var flashlightManager: FlashlightManager? = null
+        private var iHardwareService: Any? = null
+        private var setFlashEnabledMethod: Method?= null
+        fun init() {
+            if (flashlightManager == null) {
+                flashlightManager = FlashlightManager()
+            }
+            iHardwareService = (flashlightManager as FlashlightManager).hardwareService
+            setFlashEnabledMethod = (flashlightManager as FlashlightManager).getSetFlashEnabledMethod(iHardwareService)
+            if (iHardwareService == null) {
+                Log.v(TAG, "This device does supports control of a flashlight")
+            } else {
+                Log.v(TAG, "This device does not support control of a flashlight")
+            }
+        }
+        fun get(): FlashlightManager {
+            return flashlightManager!!
+        }
+    }
 }
